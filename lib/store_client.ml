@@ -2,43 +2,6 @@ open Lwt.Infix
 
 module Z = Zest_client
 
-module Store_env = struct
-
-  type t = {
-    arbiter_endpoint: Uri.t option;
-    arbiter_token: string;
-    store_key: string;
-  }
-
-  let secrets_dir = Fpath.v "/run/secrets/"
-
-  let arbiter_token () =
-    let token_file = Fpath.add_seg secrets_dir "ARBITER_TOKEN" in
-    match Bos.OS.File.read token_file with
-    | Ok token -> B64.encode token
-    | Error (`Msg msg) -> raise @@ Failure msg
-
-  let store_key () =
-    let key_file = Fpath.add_seg secrets_dir "ZMQ_PUBLIC_KEY" in
-    match Bos.OS.File.read key_file with
-    | Ok key -> key
-    | Error (`Msg msg) -> raise @@ Failure msg
-
-  let init () : t =
-    let arbiter_endpoint =
-      try
-        let endp = Sys.getenv "DATABOX_ARBITER_ENDPOINT" in
-        Some (Uri.of_string endp)
-      with _ -> None in
-    if arbiter_endpoint = None then
-      {arbiter_endpoint; arbiter_token = ""; store_key = ""}
-    else
-      let arbiter_token = arbiter_token () in
-      let store_key = store_key () in
-      {arbiter_endpoint; arbiter_token; store_key}
-end
-
-
 type content = [`Json of Ezjsonm.t | `Text of string | `Binary of string]
 type content_format = [`Json | `Text | `Binary]
 let to_format = function
@@ -67,8 +30,9 @@ module Utils = struct
 
   let headers = Cohttp.Header.init_with "Content-Type" "application/json"
 
-  let request_token (env:Store_env.t) target_host target_path meth =
-    match env.arbiter_endpoint with
+  let request_token (ctx:Store_client_ctx.t) target_host target_path meth =
+    let headers = Cohttp.Header.add headers "x-api-key" ctx.arbiter_token in
+    match ctx.arbiter_endpoint with
     | None ->  Lwt.return ""
     | Some arbiter_endpoint ->
       let uri = Uri.with_path arbiter_endpoint "/token" in
@@ -88,7 +52,7 @@ module Common = struct
   type store_type = [`KV | `TS]
   type t = {
     zest: Z.t;
-    store_env: Store_env.t;
+    client_ctx: Store_client_ctx.t;
     store_type: store_type;
   }
 
@@ -102,7 +66,7 @@ module Common = struct
     let path = with_root t path in
     let token_path = match token_path with
       | None -> path | Some path -> with_root t path in
-    Utils.request_token t.store_env host token_path "POST" >>= fun token ->
+    Utils.request_token t.client_ctx host token_path "POST" >>= fun token ->
     let uri = Uri.make ~host ~path () |> Uri.to_string in
     let format, payload = match payload with
       | `Json o -> Z.json_format, Ezjsonm.to_string o
@@ -113,7 +77,7 @@ module Common = struct
   let common_read t ~path ?(format=`Json) () =
     let host = Z.endpoint t.zest in
     let path = with_root t path in
-    Utils.request_token t.store_env host path "GET" >>= fun token ->
+    Utils.request_token t.client_ctx host path "GET" >>= fun token ->
     let uri = Uri.make ~host ~path () |> Uri.to_string in
     Z.get t.zest ~token ~format:(to_format format) ~uri ()
     >|= transform_content format
@@ -121,7 +85,7 @@ module Common = struct
   let observe t ~datasource_id ?(timeout=0) ?(format=`Json) () =
     let host = Z.endpoint t.zest in
     let path = with_root t @@ "/" ^ datasource_id in
-    Utils.request_token t.store_env host path "GET"  >>= fun token ->
+    Utils.request_token t.client_ctx host path "GET"  >>= fun token ->
     let uri = Uri.make ~host ~path () |> Uri.to_string in
     Z.observe t.zest ~token ~uri ~format:(to_format format) ()
     >|= fun s -> Lwt_stream.from (transform_stream format s)
@@ -135,7 +99,7 @@ module Common = struct
   let register_datasource t ~meta =
     let host = Z.endpoint t.zest in
     let path = "/cat" in
-    Utils.request_token t.store_env host path "POST" >>= fun token ->
+    Utils.request_token t.client_ctx host path "POST" >>= fun token ->
     let uri = Uri.make ~host ~path () |> Uri.to_string in
     let payload =
       let ds_path = with_root t @@ "/" ^ meta.Store_datasource.datasource_id in
@@ -147,23 +111,22 @@ module Common = struct
   let get_datasource_catalogue t =
     let host = Z.endpoint t.zest in
     let path = "/cat" in
-    Utils.request_token t.store_env host path "GET" >>= fun token ->
+    Utils.request_token t.client_ctx host path "GET" >>= fun token ->
     let uri = Uri.make ~host ~path () |> Uri.to_string in
     Z.get t.zest ~token ~uri ()
 
-  let create endpoint store_type =
-    let store_env = Store_env.init () in
+  let create ~endpoint store_type client_ctx =
     let dealer_endpoint =
       let endp = Uri.of_string endpoint in
       let d_endp = Uri.with_port endp (Some 5556) in
       Uri.to_string d_endp in
-    let zest = Z.create_client ~endpoint ~dealer_endpoint ~server_key:store_env.store_key in
-    {zest; store_env; store_type}
+    let zest = Z.create_client ~endpoint ~dealer_endpoint ~server_key:client_ctx.Store_client_ctx.store_key in
+    {zest; client_ctx; store_type}
 end
 
 module type KV_SIG = sig
   type t
-  val create: string -> t
+  val create: endpoint:string -> Store_client_ctx.t -> t
   val write: t -> datasource_id:string -> payload:content -> unit Lwt.t
   val read: t -> datasource_id:string -> ?format:content_format -> unit -> content Lwt.t
   val observe: t -> datasource_id:string -> ?timeout:int -> ?format:content_format -> unit -> content Lwt_stream.t Lwt.t
@@ -175,7 +138,7 @@ end
 module KV : KV_SIG = struct
   include Common
 
-  let create endpoint = create endpoint `KV
+  let create = create `KV
 
   let write t ~datasource_id ~payload =
     let path = "/" ^ datasource_id in
@@ -189,7 +152,7 @@ end
 
 module type TS_SIG = sig
   type t
-  val create: string -> t
+  val create: endpoint:string -> Store_client_ctx.t -> t
   val write: t -> datasource_id:string -> payload:Ezjsonm.t -> unit Lwt.t
   val write_at: t -> datasource_id:string -> ts:int64 -> payload:Ezjsonm.t -> unit Lwt.t
   val latest : t -> datasource_id:string -> Ezjsonm.t Lwt.t
@@ -207,7 +170,7 @@ end
 module TS : TS_SIG = struct
   include Common
 
-  let create endpoint = create endpoint `TS
+  let create = create `TS
 
   let write t ~datasource_id ~payload =
     let path = "/" ^ datasource_id in
