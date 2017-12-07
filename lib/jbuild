@@ -1,0 +1,5 @@
+(jbuild_version 1)
+
+(executable
+    ((name store_client)
+     (libraries (zest_client uri base64 bos cohttp-lwt-unix cohttp ezjsonm))))
