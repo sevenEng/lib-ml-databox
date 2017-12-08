@@ -10,7 +10,7 @@ let json_format : content_format;
 let text_format : content_format;
 let binary_format : content_format;
 
-let create_client : endpoint::string => dealer_endpoint::string => server_key::string => t;
+let create_client : endpoint::string => dealer_endpoint::string => server_key::string => logging::bool? => unit => t;
 
 let get: t => token::string? => format::content_format? => uri::string => unit => Lwt.t string;
 let post: t => token::string? => format::content_format? => uri::string => payload::string => unit => Lwt.t unit;

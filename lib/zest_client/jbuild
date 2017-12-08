@@ -2,6 +2,6 @@
 
 (library
     ((name zest_client)
-     (libraries (lwt-zmq bitstring hex bos uri))
+     (libraries (lwt-zmq bitstring hex))
      (preprocess (pps (ppx_bitstring)))
      (wrapped false)))

@@ -263,9 +263,9 @@ let connect_request_socket ctx endpoint server_key => {
   Lwt_zmq.Socket.of_socket soc;
 };
 
-let connect_dealer_socket ctx endpoint ident key => {
+let connect_dealer_socket ctx endpoint server_key ident => {
   let soc = ZMQ.Socket.create ctx ZMQ.Socket.dealer;
-  set_dealer_socket_security soc key;
+  set_dealer_socket_security soc server_key;
   ZMQ.Socket.set_identity soc ident;
   ZMQ.Socket.connect soc endpoint;
   Lwt_zmq.Socket.of_socket soc;
@@ -293,11 +293,13 @@ let get_req ::token=? ::format=json_format uri::uri () => {
 };
 
 let get t ::token=? ::format=json_format ::uri () => {
-  let req_msg = get_req ::?token ::format ::uri ();
-  send_request msg::req_msg to::t.request_socket >>= fun resp =>
-  switch resp {
-  | Response.Payload payload => Lwt.return payload;
-  | _ => Lwt.fail (Failure (string_of_response resp));
+  Lwt_log_core.debug_f "GETing: %s" uri >>= fun () => {
+    let req_msg = get_req ::?token ::format ::uri ();
+    send_request msg::req_msg to::t.request_socket >>= fun resp =>
+    switch resp {
+    | Response.Payload payload => Lwt.return payload;
+    | _ => Lwt.fail (Failure (string_of_response resp));
+    };
   };
 };
 
@@ -318,11 +320,13 @@ let post_req ::token=? ::format=json_format uri::uri payload::payload () => {
 };
 
 let post t ::token=? ::format=json_format ::uri ::payload () => {
-  let req_msg = post_req ::?token ::format ::uri ::payload ();
-  send_request msg::req_msg to::t.request_socket >>= fun resp =>
-  switch resp {
-  | Response.OK => Lwt.return_unit;
-  | _ => Lwt.fail (Failure (string_of_response resp));
+  Lwt_log_core.debug_f "POSTing: %s, with\n%s" uri payload >>= fun () => {
+    let req_msg = post_req ::?token ::format ::uri ::payload ();
+    send_request msg::req_msg to::t.request_socket >>= fun resp =>
+    switch resp {
+    | Response.OK => Lwt.return_unit;
+    | _ => Lwt.fail (Failure (string_of_response resp));
+    };
   };
 };
 
@@ -343,23 +347,26 @@ let observe_req ::token=? ::format=json_format uri::uri ::age=? () => {
 
 
 let observe t ::token=? ::format=json_format ::uri ::age=0 () => {
-  let req_msg = observe_req ::?token ::format ::uri ::age ();
-  send_request msg::req_msg to::t.request_socket >>= fun resp =>
-  switch resp {
-  | Observe key ident =>
-      let deal_soc = connect_dealer_socket t.zmq_ctx t.dealer_endpoint key ident;
-      t.observers = [(uri, deal_soc), ...t.observers];
-      let pump_data () =>
-        Lwt_zmq.Socket.recv deal_soc >>= fun msg =>
-        handle_response ::msg >>= fun resp =>
-        switch resp {
-        | Response.Payload p => Lwt.return (Some p);
-        | _ =>
-            Lwt_log_core.warning_f "%s" (string_of_response resp) >>= fun () =>
-            Lwt.return None;
-        };
-      Lwt.return @@ Lwt_stream.from pump_data;
-  | _ => Lwt.fail (Failure (string_of_response resp));
+  Lwt_log_core.debug_f "Observing: %s for %d seconds" uri age >>= fun () => {
+    let req_msg = observe_req ::?token ::format ::uri ::age ();
+    send_request msg::req_msg to::t.request_socket >>= fun resp =>
+    switch resp {
+    | Observe key ident =>
+        let deal_soc = connect_dealer_socket t.zmq_ctx t.dealer_endpoint key ident;
+        t.observers = [(uri, deal_soc), ...t.observers];
+        let pump_data () =>
+          Lwt_zmq.Socket.recv deal_soc >>= fun msg =>
+          handle_response ::msg >>= fun resp =>
+          switch resp {
+          | Response.Payload p => Lwt.return (Some p);
+          | _ =>
+              close_socket deal_soc;
+              Lwt_log_core.warning_f "%s" (string_of_response resp) >>= fun () =>
+              Lwt.return None;
+          };
+        Lwt.return @@ Lwt_stream.from pump_data;
+    | _ => Lwt.fail (Failure (string_of_response resp));
+    };
   };
 };
 
@@ -507,10 +514,11 @@ let report_error e => {
 };
 
 
-let create_client ::endpoint ::dealer_endpoint ::server_key => {
+let create_client ::endpoint ::dealer_endpoint ::server_key ::logging=false () => {
   let zmq_ctx = ZMQ.Context.create ();
   let request_socket = connect_request_socket zmq_ctx endpoint server_key;
   let observers = [];
   let client = {zmq_ctx, endpoint, dealer_endpoint, request_socket, observers};
+  if (logging) { setup_logger (); };
   client
 };

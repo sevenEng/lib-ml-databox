@@ -4,11 +4,19 @@ type meta = {
   vendor:          string;
   datasource_type: string;
   datasource_id:   string;
-  store_type:      string;
+  store_type:      [`KV | `TS];
   is_actuator:     bool;
   unit:            string option;
   location:        string option;
 }
+
+let string_of_store_type = function
+  | `KV -> "kv"
+  | `TS -> "ts"
+let store_type_of_string str = match String.lowercase_ascii str with
+  | "kv" -> `KV
+  | "ts" -> `TS
+  | _ -> raise @@ Failure ("unknown store type: " ^ str)
 
 let relation (rel,valu) = `O ["rel", `String rel; "val", valu]
 let to_hypercat store_endpoint meta : Ezjsonm.t =
@@ -18,7 +26,7 @@ let to_hypercat store_endpoint meta : Ezjsonm.t =
     "urn:X-databox:rels:hasVendor", `String meta.vendor;
     "urn:X-databox:rels:hasType", `String meta.datasource_type;
     "urn:X-databox:rels:hasDatasourceid", `String meta.datasource_id;
-    "urn:X-databox:rels:hasStoreType", `String meta.store_type; ] in
+    "urn:X-databox:rels:hasStoreType", `String (string_of_store_type meta.store_type); ] in
   let item_metadata = fun items ->
     (if meta.is_actuator then items @ ["urn:X-databox:rels:isActuator", `Bool meta.is_actuator]
     else items)
@@ -55,7 +63,7 @@ let from_hypercat cat =
     vendor = List.assoc "urn:X-databox:rels:hasVendor" item_metadata |> get_string;
     datasource_type = List.assoc "urn:X-databox:rels:hasType" item_metadata |> get_string;
     datasource_id = List.assoc "urn:X-databox:rels:hasDatasourceid" item_metadata |> get_string;
-    store_type = List.assoc "urn:X-databox:rels:hasStoreType" item_metadata |> get_string;
+    store_type = List.assoc "urn:X-databox:rels:hasStoreType" item_metadata |> get_string |> store_type_of_string;
     is_actuator =
       if not @@ List.mem_assoc "urn:X-databox:rels:isActuator" item_metadata then false
       else List.assoc "urn:X-databox:rels:isActuator" item_metadata |> get_bool;
@@ -69,14 +77,3 @@ let from_hypercat cat =
     else None;
   } in
   store_endpoint, meta
-
-let set_actuator meta is_actuator = {meta with is_actuator}
-let set_unit meta unit = {meta with unit}
-let set_location meta location = {meta with location}
-
-let create_meta ~description ~content_type ~vendor ~datasource_type
-    ~datasource_id ~store_type =
-    let is_actuator = false in
-    let unit = None and location = None in
-    {description; content_type; vendor; datasource_type;
-     datasource_id; store_type; is_actuator; unit; location}

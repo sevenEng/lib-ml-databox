@@ -67,66 +67,59 @@ module Common = struct
     let token_path = match token_path with
       | None -> path | Some path -> with_root t path in
     Utils.request_token t.client_ctx host token_path "POST" >>= fun token ->
-    let uri = Uri.make ~host ~path () |> Uri.to_string in
     let format, payload = match payload with
       | `Json o -> Z.json_format, Ezjsonm.to_string o
       | `Text t -> Z.text_format, t
       | `Binary b -> Z.binary_format, b in
-    Z.post t.zest ~token ~format ~uri ~payload ()
+    Z.post t.zest ~token ~format ~uri:path ~payload ()
 
   let common_read t ~path ?(format=`Json) () =
     let host = Z.endpoint t.zest in
     let path = with_root t path in
     Utils.request_token t.client_ctx host path "GET" >>= fun token ->
-    let uri = Uri.make ~host ~path () |> Uri.to_string in
-    Z.get t.zest ~token ~format:(to_format format) ~uri ()
+    Z.get t.zest ~token ~format:(to_format format) ~uri:path ()
     >|= transform_content format
 
   let observe t ~datasource_id ?(timeout=0) ?(format=`Json) () =
     let host = Z.endpoint t.zest in
     let path = with_root t @@ "/" ^ datasource_id in
     Utils.request_token t.client_ctx host path "GET"  >>= fun token ->
-    let uri = Uri.make ~host ~path () |> Uri.to_string in
-    Z.observe t.zest ~token ~uri ~format:(to_format format) ()
+    Z.observe t.zest ~token ~uri:path ~format:(to_format format) ()
     >|= fun s -> Lwt_stream.from (transform_stream format s)
 
   let stop_observing t ~datasource_id =
-    let host = Z.endpoint t.zest in
     let path = with_root t @@ "/" ^ datasource_id in
-    let uri = Uri.make ~host ~path () |> Uri.to_string in
-    Z.stop_observing t.zest ~uri
+    Z.stop_observing t.zest ~uri:path
 
   let register_datasource t ~meta =
     let host = Z.endpoint t.zest in
     let path = "/cat" in
     Utils.request_token t.client_ctx host path "POST" >>= fun token ->
-    let uri = Uri.make ~host ~path () |> Uri.to_string in
     let payload =
       let ds_path = with_root t @@ "/" ^ meta.Store_datasource.datasource_id in
       let ds_uri = Uri.with_path (Uri.of_string host) ds_path in
       let cat = Store_datasource.to_hypercat ds_uri meta in
       Ezjsonm.to_string cat in
-    Z.post t.zest ~token ~format:Z.json_format ~uri ~payload ()
+    Z.post t.zest ~token ~format:Z.json_format ~uri:path ~payload ()
 
   let get_datasource_catalogue t =
     let host = Z.endpoint t.zest in
     let path = "/cat" in
     Utils.request_token t.client_ctx host path "GET" >>= fun token ->
-    let uri = Uri.make ~host ~path () |> Uri.to_string in
-    Z.get t.zest ~token ~uri ()
+    Z.get t.zest ~token ~uri:path ()
 
-  let create ~endpoint store_type client_ctx =
+  let create ~endpoint store_type client_ctx ?logging () =
     let dealer_endpoint =
       let endp = Uri.of_string endpoint in
       let d_endp = Uri.with_port endp (Some 5556) in
       Uri.to_string d_endp in
-    let zest = Z.create_client ~endpoint ~dealer_endpoint ~server_key:client_ctx.Store_client_ctx.store_key in
+    let zest = Z.create_client ~endpoint ~dealer_endpoint ~server_key:client_ctx.Store_client_ctx.store_key ?logging () in
     {zest; client_ctx; store_type}
 end
 
 module type KV_SIG = sig
   type t
-  val create: endpoint:string -> Store_client_ctx.t -> t
+  val create: endpoint:string -> Store_client_ctx.t -> ?logging:bool -> unit -> t
   val write: t -> datasource_id:string -> payload:content -> unit Lwt.t
   val read: t -> datasource_id:string -> ?format:content_format -> unit -> content Lwt.t
   val observe: t -> datasource_id:string -> ?timeout:int -> ?format:content_format -> unit -> content Lwt_stream.t Lwt.t
@@ -152,7 +145,7 @@ end
 
 module type TS_SIG = sig
   type t
-  val create: endpoint:string -> Store_client_ctx.t -> t
+  val create: endpoint:string -> Store_client_ctx.t -> ?logging:bool -> unit -> t
   val write: t -> datasource_id:string -> payload:Ezjsonm.t -> unit Lwt.t
   val write_at: t -> datasource_id:string -> ts:int64 -> payload:Ezjsonm.t -> unit Lwt.t
   val latest : t -> datasource_id:string -> Ezjsonm.t Lwt.t

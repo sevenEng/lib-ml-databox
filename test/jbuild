@@ -1,0 +1,10 @@
+(jbuild_version 1)
+
+(executable
+  ((name test)
+   (libraries (core_store alcotest))))
+
+(alias
+ ((name runtest)
+  (deps (test.exe))
+  (action (run ./test.sh))))
