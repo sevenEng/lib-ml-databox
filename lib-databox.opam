@@ -1,0 +1,31 @@
+opam-version: "1.2"
+maintainer:   "ql272@cl.cam.ac.uk"
+homepage:     "https://github.com/sevenEng/lib-ml-databox"
+dev-repo:     "https://github.com/sevenEng/lib-ml-databox.git"
+bug-reports:  "https://github.com/sevenEng/lib-ml-databox/issues"
+license: "MIT"
+authors: ["Qi Li" "John Moore"]
+tags: ["org:databox"]
+
+build: [
+  ["jbuilder" "subst"] {pinned}
+  ["jbuilder" "build" "-p" name "-j" jobs]
+]
+build-test: [
+  ["jbuilder" "runtest" "-p" name "-j" jobs]
+]
+
+depends: [
+  "jbuilder"     {build}
+
+  "lwt-zmq"
+  "bitstring"
+  "hex"
+  "ppx_bitstring"
+
+  "bos"
+  "base64"
+  "uri"
+  "ezjsonm"
+  "cohttp"
+]

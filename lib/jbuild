@@ -1,6 +1,7 @@
 (jbuild_version 1)
 
 (library
-    ((name core_store)
+    ((name lib_databox)
+     (public_name lib-databox)
      (wrapped false)
      (libraries (zest_client uri base64 bos cohttp-lwt-unix ezjsonm))))
