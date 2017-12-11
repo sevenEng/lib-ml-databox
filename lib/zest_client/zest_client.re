@@ -364,7 +364,11 @@ let observe t ::token=? ::format=json_format ::uri ::age=0 () => {
               Lwt_log_core.warning_f "%s" (string_of_response resp) >>= fun () =>
               Lwt.return None;
           };
-        Lwt.return @@ Lwt_stream.from pump_data;
+        let from_fn () =>
+          Lwt.catch pump_data (fun err =>
+            Lwt_log_core.warning_f "%s" (Printexc.to_string err) >>= fun () =>
+            Lwt.return None);
+        Lwt.return @@ Lwt_stream.from from_fn;
     | _ => Lwt.fail (Failure (string_of_response resp));
     };
   };
