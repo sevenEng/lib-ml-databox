@@ -58,3 +58,8 @@ let request_token t ~host ~path ~meth =
     if Cohttp.Response.status resp <> `OK
     then Lwt.fail @@ Failure (Uri.to_string uri)
     else Cohttp_lwt_body.to_string body
+
+let https_creds () =
+  let cert = Fpath.add_seg secrets_dir "DATABOX.pem" in
+  let priv_key = Fpath.add_seg secrets_dir "DATABOX.pem" in
+  Fpath.to_string cert, Fpath.to_string priv_key
