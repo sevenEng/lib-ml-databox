@@ -4,12 +4,7 @@ open Lwt.Infix
 module KV = Store_client.KV
 module TS = Store_client.TS
 
-let test_ctx =
-  let open Store_client_ctx in {
-    arbiter_endpoint = None;
-    arbiter_token = "";
-    store_key = "vl6wu0A@XP?}Or/&BR#LSxn>A+}L)p44/W[wXL3<"
-  }
+let test_ctx = Utils.databox_init ()
 
 let endpoint = "tcp://127.0.0.1:5555"
 

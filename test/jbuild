@@ -2,7 +2,7 @@
 
 (executable
   ((name test)
-   (libraries (core_store alcotest))))
+   (libraries (lib_databox alcotest))))
 
 (alias
  ((name runtest)

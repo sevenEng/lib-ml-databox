@@ -21,38 +21,11 @@ let transform_stream f s () =
   | None -> Lwt.return_none
 
 
-
-module Utils = struct
-  module Client = Cohttp_lwt_unix.Client
-
-  let body_of_json json =
-    Cohttp_lwt_body.of_string @@ Ezjsonm.to_string json
-
-  let headers = Cohttp.Header.init_with "Content-Type" "application/json"
-
-  let request_token (ctx:Store_client_ctx.t) target_host target_path meth =
-    let headers = Cohttp.Header.add headers "x-api-key" ctx.arbiter_token in
-    match ctx.arbiter_endpoint with
-    | None ->  Lwt.return ""
-    | Some arbiter_endpoint ->
-      let uri = Uri.with_path arbiter_endpoint "/token" in
-      let body = `O [
-        "target", `String target_host;
-        "path", `String target_path;
-        "method", `String meth
-      ] |> body_of_json in
-      Client.post ~body ~headers uri >>= fun (resp, body) ->
-      if Cohttp.Response.status resp <> `OK
-      then Lwt.fail @@ Failure (Uri.to_string uri)
-      else Cohttp_lwt_body.to_string body
-end
-
-
 module Common = struct
   type store_type = [`KV | `TS]
   type t = {
     zest: Z.t;
-    client_ctx: Store_client_ctx.t;
+    client_ctx: Utils.store_ctx;
     store_type: store_type;
   }
 
@@ -66,7 +39,7 @@ module Common = struct
     let path = with_root t path in
     let token_path = match token_path with
       | None -> path | Some path -> with_root t path in
-    Utils.request_token t.client_ctx host token_path "POST" >>= fun token ->
+    Utils.request_token t.client_ctx ~host ~path:token_path ~meth:"POST" >>= fun token ->
     let format, payload = match payload with
       | `Json o -> Z.json_format, Ezjsonm.to_string o
       | `Text t -> Z.text_format, t
@@ -76,14 +49,14 @@ module Common = struct
   let common_read t ~path ?(format=`Json) () =
     let host = Z.endpoint t.zest in
     let path = with_root t path in
-    Utils.request_token t.client_ctx host path "GET" >>= fun token ->
+    Utils.request_token t.client_ctx ~host ~path ~meth:"GET" >>= fun token ->
     Z.get t.zest ~token ~format:(to_format format) ~uri:path ()
     >|= transform_content format
 
   let observe t ~datasource_id ?(timeout=0) ?(format=`Json) () =
     let host = Z.endpoint t.zest in
     let path = with_root t @@ "/" ^ datasource_id in
-    Utils.request_token t.client_ctx host path "GET"  >>= fun token ->
+    Utils.request_token t.client_ctx ~host ~path ~meth:"GET"  >>= fun token ->
     Z.observe t.zest ~token ~uri:path ~format:(to_format format) ()
     >|= fun s -> Lwt_stream.from (transform_stream format s)
 
@@ -94,7 +67,7 @@ module Common = struct
   let register_datasource t ~meta =
     let host = Z.endpoint t.zest in
     let path = "/cat" in
-    Utils.request_token t.client_ctx host path "POST" >>= fun token ->
+    Utils.request_token t.client_ctx ~host ~path ~meth:"POST" >>= fun token ->
     let payload =
       let ds_path = with_root t @@ "/" ^ meta.Store_datasource.datasource_id in
       let ds_uri = Uri.with_path (Uri.of_string host) ds_path in
@@ -105,7 +78,7 @@ module Common = struct
   let get_datasource_catalogue t =
     let host = Z.endpoint t.zest in
     let path = "/cat" in
-    Utils.request_token t.client_ctx host path "GET" >>= fun token ->
+    Utils.request_token t.client_ctx ~host ~path ~meth:"GET" >>= fun token ->
     Z.get t.zest ~token ~uri:path ()
 
   let create ~endpoint store_type client_ctx ?logging () =
@@ -113,13 +86,14 @@ module Common = struct
       let endp = Uri.of_string endpoint in
       let d_endp = Uri.with_port endp (Some 5556) in
       Uri.to_string d_endp in
-    let zest = Z.create_client ~endpoint ~dealer_endpoint ~server_key:client_ctx.Store_client_ctx.store_key ?logging () in
+    let server_key = Utils.store_key client_ctx in
+    let zest = Z.create_client ~endpoint ~dealer_endpoint ~server_key ?logging () in
     {zest; client_ctx; store_type}
 end
 
 module type KV_SIG = sig
   type t
-  val create: endpoint:string -> Store_client_ctx.t -> ?logging:bool -> unit -> t
+  val create: endpoint:string -> Utils.store_ctx -> ?logging:bool -> unit -> t
   val write: t -> datasource_id:string -> payload:content -> unit Lwt.t
   val read: t -> datasource_id:string -> ?format:content_format -> unit -> content Lwt.t
   val observe: t -> datasource_id:string -> ?timeout:int -> ?format:content_format -> unit -> content Lwt_stream.t Lwt.t
@@ -145,7 +119,7 @@ end
 
 module type TS_SIG = sig
   type t
-  val create: endpoint:string -> Store_client_ctx.t -> ?logging:bool -> unit -> t
+  val create: endpoint:string -> Utils.store_ctx -> ?logging:bool -> unit -> t
   val write: t -> datasource_id:string -> payload:Ezjsonm.t -> unit Lwt.t
   val write_at: t -> datasource_id:string -> ts:int64 -> payload:Ezjsonm.t -> unit Lwt.t
   val latest : t -> datasource_id:string -> Ezjsonm.t Lwt.t
