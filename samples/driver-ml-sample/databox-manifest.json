@@ -1,0 +1,31 @@
+{
+  "manifest-version": 1,
+
+  "name": "driver-ml-sample",
+  "version": "0.3.0",
+
+  "description": "A simple Databox driver to test lib-ml-databox",
+  "author": "Qi Li <ql272@cl.cam.ac.uk> ()",
+  "license": "MIT",
+
+	"databox-type":"driver",
+
+  "tags": [
+    "store",
+    "blob",
+    "db",
+    "native",
+    "json",
+    "timeseries"
+  ],
+
+  "homepage": "https://github.com/sevenEng/lib-ml-databox",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sevenEng/lib-ml-databox.git"
+  },
+
+  "resource-requirements": {
+    "store":"core-store"
+  }
+}
