@@ -1,5 +1,6 @@
 open Alcotest
 open Lwt.Infix
+open Lib_databox
 
 module KV = Store_client.KV
 module TS = Store_client.TS

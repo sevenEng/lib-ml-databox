@@ -1,7 +1,0 @@
-(jbuild_version 1)
-
-(library
-    ((name zest_client)
-     (libraries (lwt-zmq bitstring hex))
-     (preprocess (pps (ppx_bitstring)))
-     (wrapped false)))
