@@ -6,8 +6,6 @@ module TS = Store_client.TS
 
 let test_ctx = Utils.databox_init ()
 
-let endpoint = "tcp://127.0.0.1:5555"
-
 let test_meta =
   let open Store_datasource in
   let description = "test datasource" in
@@ -51,13 +49,13 @@ let content : Store_client.content Alcotest.testable =
   Alcotest.testable fmt cmp
 
 let setup_kv ?logging () =
-  let kvc_x = KV.create ~endpoint test_ctx ?logging () in
+  let kvc_x = KV.create test_ctx ?logging () in
   let x_meta = test_meta in
   KV.register_datasource kvc_x ~meta:x_meta >>= fun () ->
   KV.get_datasource_catalogue kvc_x >>= fun cat_raw ->
   let cat_json = Ezjsonm.from_string cat_raw in
-  let uri, y_meta = List.hd @@ metas_of_cat cat_json in
-  let kvc_y = KV.create ~endpoint:(Uri.to_string uri) test_ctx ?logging () in
+  let _, y_meta = List.hd @@ metas_of_cat cat_json in
+  let kvc_y = KV.create test_ctx ?logging () in
   Lwt.return ((kvc_x, x_meta), (kvc_y, y_meta))
 
 let test_kv_rw ctx () =
@@ -96,13 +94,13 @@ let test_kv_observe ctx () =
 
 
 let setup_ts ?logging () =
-  let tsc_x = TS.create ~endpoint test_ctx ?logging () in
+  let tsc_x = TS.create test_ctx ?logging () in
   let x_meta = test_meta in
   TS.register_datasource tsc_x ~meta:x_meta >>= fun () ->
   TS.get_datasource_catalogue tsc_x >>= fun cat_raw ->
   let cat_json = Ezjsonm.from_string cat_raw in
-  let uri, y_meta = List.hd @@ metas_of_cat cat_json in
-  let tsc_y = TS.create ~endpoint:(Uri.to_string uri) test_ctx ?logging () in
+  let _, y_meta = List.hd @@ metas_of_cat cat_json in
+  let tsc_y = TS.create test_ctx ?logging () in
   Lwt.return ((tsc_x, x_meta), (tsc_y, y_meta))
 
 let ezjson =

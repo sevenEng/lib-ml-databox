@@ -1,11 +1,13 @@
-type store_ctx
+type databox_ctx = {
+  arbiter_endpoint: Uri.t option;
+  arbiter_token: string;
+  store_endpoint: string;
+  store_key: string;
+}
 
-val databox_init : unit -> store_ctx
+val databox_init : unit -> databox_ctx
 
-val with_store_key: store_ctx -> string -> store_ctx
-val store_key: store_ctx -> string
-
-val request_token: store_ctx -> host:string -> path:string -> meth:string -> string Lwt.t
+val request_token: databox_ctx -> host:string -> path:string -> meth:string -> string Lwt.t
 
 (* returns (cert, priv_key) *)
 (* could pass directly to X509_lwt.private_of_pems ~cert ~priv_key *)
