@@ -39,7 +39,7 @@ module Common = struct
     let path = with_root t path in
     let token_path = match token_path with
       | None -> path | Some path -> with_root t path in
-    Utils.request_token t.client_ctx ~host ~path:token_path ~meth:"POST" >>= fun token ->
+    Utils.request_token t.client_ctx.arbiter ~host ~path:token_path ~meth:"POST" >>= fun token ->
     let format, payload = match payload with
       | `Json o -> Z.json_format, Ezjsonm.to_string o
       | `Text t -> Z.text_format, t
@@ -49,14 +49,14 @@ module Common = struct
   let common_read t ~path ?(format=`Json) () =
     let host = Z.endpoint t.zest in
     let path = with_root t path in
-    Utils.request_token t.client_ctx ~host ~path ~meth:"GET" >>= fun token ->
+    Utils.request_token t.client_ctx.arbiter ~host ~path ~meth:"GET" >>= fun token ->
     Z.get t.zest ~token ~format:(to_format format) ~uri:path ()
     >|= transform_content format
 
   let observe t ~datasource_id ?(timeout=0) ?(format=`Json) () =
     let host = Z.endpoint t.zest in
     let path = with_root t @@ "/" ^ datasource_id in
-    Utils.request_token t.client_ctx ~host ~path ~meth:"GET"  >>= fun token ->
+    Utils.request_token t.client_ctx.arbiter ~host ~path ~meth:"GET"  >>= fun token ->
     Z.observe t.zest ~token ~uri:path ~format:(to_format format) ()
     >|= fun s -> Lwt_stream.from (transform_stream format s)
 
@@ -67,7 +67,7 @@ module Common = struct
   let register_datasource t ~meta =
     let host = Z.endpoint t.zest in
     let path = "/cat" in
-    Utils.request_token t.client_ctx ~host ~path ~meth:"POST" >>= fun token ->
+    Utils.request_token t.client_ctx.arbiter ~host ~path ~meth:"POST" >>= fun token ->
     let payload =
       let ds_path = with_root t @@ "/" ^ meta.Store_datasource.datasource_id in
       let ds_uri = Uri.with_path (Uri.of_string host) ds_path in
@@ -78,7 +78,7 @@ module Common = struct
   let get_datasource_catalogue t =
     let host = Z.endpoint t.zest in
     let path = "/cat" in
-    Utils.request_token t.client_ctx ~host ~path ~meth:"GET" >>= fun token ->
+    Utils.request_token t.client_ctx.arbiter ~host ~path ~meth:"GET" >>= fun token ->
     Z.get t.zest ~token ~uri:path ()
 
   let create store_type client_ctx ?logging () =
