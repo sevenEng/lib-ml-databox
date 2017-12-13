@@ -30,7 +30,7 @@
         "type":"mlSampleFeed",
         "required":true,
         "name":"mlSampleFeed",
-        "clientid":"DS_mlSampleFeed",
+        "clientid":"mlSampleFeed",
         "granularities":[
 
         ]
@@ -39,7 +39,7 @@
         "type":"mlSampleActuator",
         "required":true,
         "name":"mlSampleActuator",
-        "clientid":"DS_mlSampleActuator",
+        "clientid":"mlSampleActuator",
         "granularities":[
 
         ]
