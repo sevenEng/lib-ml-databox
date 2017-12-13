@@ -81,8 +81,7 @@ module Common = struct
     Utils.request_token t.client_ctx.arbiter ~host ~path ~meth:"GET" >>= fun token ->
     Z.get t.zest ~token ~uri:path ()
 
-  let create store_type client_ctx ?logging () =
-    let endpoint = client_ctx.Utils.store_endpoint in
+  let create store_type ~endpoint client_ctx ?logging () =
     let dealer_endpoint =
       let endp = Uri.of_string endpoint in
       let d_endp = Uri.with_port endp (Some 5556) in
@@ -94,7 +93,7 @@ end
 
 module type KV_SIG = sig
   type t
-  val create: Utils.databox_ctx -> ?logging:bool -> unit -> t
+  val create: endpoint:string -> Utils.databox_ctx -> ?logging:bool -> unit -> t
   val write: t -> datasource_id:string -> payload:content -> unit Lwt.t
   val read: t -> datasource_id:string -> ?format:content_format -> unit -> content Lwt.t
   val observe: t -> datasource_id:string -> ?timeout:int -> ?format:content_format -> unit -> content Lwt_stream.t Lwt.t
@@ -120,7 +119,7 @@ end
 
 module type TS_SIG = sig
   type t
-  val create: Utils.databox_ctx -> ?logging:bool -> unit -> t
+  val create: endpoint:string -> Utils.databox_ctx -> ?logging:bool -> unit -> t
   val write: t -> datasource_id:string -> payload:Ezjsonm.t -> unit Lwt.t
   val write_at: t -> datasource_id:string -> ts:int64 -> payload:Ezjsonm.t -> unit Lwt.t
   val latest : t -> datasource_id:string -> Ezjsonm.t Lwt.t

@@ -8,7 +8,6 @@ type arbiter = {
 
 type databox_ctx = {
   arbiter: arbiter;
-  store_endpoint: string;
   store_key: string;
 }
 
@@ -20,9 +19,7 @@ let arbiter_token () =
   | Ok token -> B64.encode token
   | Error (`Msg msg) -> raise @@ Failure msg
 
-let store_endpoint () =
-  try Sys.getenv "DATABOX_ZMQ_ENDPOINT"
-  with Not_found -> ""
+let store_endpoint () = Sys.getenv "DATABOX_ZMQ_ENDPOINT"
 
 let store_key () =
   let key_file = Fpath.add_seg secrets_dir "ZMQ_PUBLIC_KEY" in
@@ -42,7 +39,6 @@ let databox_init () : databox_ctx =
       arbiter_token = "";
       token_cache = Hashtbl.create 23; } in
     { arbiter;
-      store_endpoint = "tcp://127.0.0.1:5555";
       store_key = "vl6wu0A@XP?}Or/&BR#LSxn>A+}L)p44/W[wXL3<"}
   else
     let arbiter_token = arbiter_token () in
@@ -50,16 +46,12 @@ let databox_init () : databox_ctx =
       arbiter_endpoint;
       arbiter_token;
       token_cache = Hashtbl.create 23; } in
-    let store_endpoint = store_endpoint () in
     let store_key = store_key () in
-    {arbiter; store_endpoint; store_key}
+    {arbiter; store_key}
 
 
 let with_store_key t store_key = {t with store_key}
 let store_key {store_key} = store_key
-
-let with_store_endpoint t store_endpoint = {t with store_endpoint}
-let store_endpoint {store_endpoint} = store_endpoint
 
 module Client = Cohttp_lwt_unix.Client
 
