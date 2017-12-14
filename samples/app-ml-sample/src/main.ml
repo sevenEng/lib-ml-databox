@@ -75,11 +75,19 @@ let should_stop app results =
 
 let callback t conn req body =
   let tsc, feed_stm, actuator_id = t.store in
+  let meth = Cohttp.Request.meth req in
   let uri = Cohttp.Request.uri req in
+  Lwt_log.notice_f "connection %s: %s %s"
+    (Cohttp.Connection.to_string (snd conn))
+    (Cohttp.Code.string_of_method meth)
+    (Uri.to_string uri) >>= fun () ->
   let path = Uri.path uri |> String.split_on_char '/' |> List.tl in
   match path with
   | ["ui"] ->
-    let meth = Cohttp.Request.meth req in
+    let uri' = Uri.with_path uri "/index.html" in
+    let fname = Server.resolve_file ~docroot:"./www" ~uri:uri' in
+    Server.respond_file ~fname ()
+  | ["ui"; "solve"] ->
     (match meth with
     | `POST ->
       req_of_body body >>= fun (to_solve, delta) ->
@@ -118,5 +126,10 @@ let main () =
   let app = {to_solve = 0.; delta = 0.; last = 0. } in
   let t = {store; app} in
   let server = Server.make ~callback:(callback t) () in
-  (* TODO: set up https *)
-  Server.create server
+  let cert, key = Utils.https_creds () in
+  let tls_config = `Crt_file_path cert, `Key_file_path key, `No_password, `Port 8080 in
+  let mode = `TLS tls_config in
+  Lwt_log.notice "app-ml-sample started..." >>= fun () ->
+  Server.create ~mode server
+
+let () = Lwt_main.run @@ main ()

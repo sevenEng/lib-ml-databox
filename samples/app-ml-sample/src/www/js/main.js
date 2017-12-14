@@ -4,7 +4,7 @@ $( document ).ready(function() {
         var delta = $("#delta").val();
         if (isNumeric(rn) && isNumeric(delta) && rn >= 0 && delta >= 0) {
             this.disabled = true;
-            $.post("./ui",$( "#solver" ).serialize())
+            $.post("./ui/solve",$( "#solver" ).serialize())
             .done(() => {
                 $("#output").val("Solving:");
                 pollingRe($("#output"));
@@ -24,7 +24,7 @@ function isNumeric(n) {
 
 function pollingRe(output) {
     setTimeout(() => {
-        $.get("/ui", (data) => {
+        $.get("/ui/solve", (data) => {
             if (data.length !== 0 && data[0] === "over") {
                 return;
             } else {

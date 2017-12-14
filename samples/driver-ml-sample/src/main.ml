@@ -48,7 +48,10 @@ let serve_req tsc req_stm =
   let req_q = ref [] in
   let rec extract_req () =
     Lwt_stream.get req_stm >>= function
-    | Some req -> req_q := (to_req req) :: !req_q; extract_req ()
+    | Some req ->
+      req_q := (to_req req) :: !req_q;
+      Lwt_log.notice_f "got request: %s" (Ezjsonm.to_string req) >>= fun () ->
+      extract_req ()
     | None -> Lwt.return_unit in
 
   let rec compute s xn =
@@ -62,6 +65,7 @@ let serve_req tsc req_stm =
           else compute (Some s) (s /. 2.)
     | Some s ->
         let payload = to_resp s xn in
+        Lwt_log.notice_f "feed back: %s" (Ezjsonm.to_string payload) >>= fun () ->
         TS.write tsc ~datasource_id:feed_meta.Store_datasource.datasource_id ~payload >>= fun () ->
         if !req_q = [] || List.hd !req_q != (s, "stop") then compute (Some s) (next s xn)
         else (req_q := List.tl !req_q; compute None 0.) in
@@ -77,6 +81,7 @@ let main () =
   TS.register_datasource tsc ~meta:actuator_meta >>= fun () ->
 
   TS.observe tsc ~datasource_id:actuator_meta.Store_datasource.datasource_id () >>= fun req_stm ->
+  Lwt_log.notice "driver-ml-sample started..." >>= fun () ->
   serve_req tsc req_stm
 
 let () = Lwt_main.run @@ main ()
