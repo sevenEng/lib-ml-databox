@@ -51,7 +51,7 @@ let from_hypercat cat =
   let href = List.assoc "href" cat |> get_string in
   let store_endpoint =
     let uri = Uri.of_string href in
-    Uri.with_uri ~path:None uri in
+    Uri.with_path uri "" in
   let item_metadata =
     List.assoc "item-metadata" cat |> get_list get_dict
     |> List.fold_left (fun acc item ->

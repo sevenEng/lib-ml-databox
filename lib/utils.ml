@@ -74,23 +74,26 @@ let request_token t ~host ~path ~meth =
   match t.arbiter_endpoint with
   | None ->  Lwt.return ""
   | Some arbiter_endpoint ->
-    let hostname = Uri.of_string host |> Uri.host_with_default ~default:"" in
-    match check_cache t hostname path meth with
+    match check_cache t host path meth with
     | Some cached -> Lwt.return cached
     | None ->
         let uri = Uri.with_path arbiter_endpoint "/token" in
         let body = `O [
-          "target", `String hostname;
+          "target", `String host;
           "path", `String path;
           "method", `String meth
         ] |> body_of_json in
         Client.post ~body ~headers uri >>= fun (resp, body) ->
-        if Cohttp.Response.status resp <> `OK
-        then Lwt.fail @@ Failure (Uri.to_string uri)
+        if Cohttp.Response.status resp <> `OK then
+          Cohttp_lwt_body.to_string body >>= fun body ->
+          let resp_code = Cohttp.Response.status resp |> Cohttp.Code.string_of_status in
+          let failure = Printf.sprintf "%s %s %s\nfor %s %s %s"
+          (Uri.to_string uri) resp_code body meth host path in
+          Lwt.fail @@ Failure failure
         else begin
           Cohttp_lwt_body.to_string body >>= fun token ->
-          Hashtbl.add t.token_cache (hostname, path, meth) token;
-          Lwt.async (fun () -> clear_entry t 120. hostname path meth);
+          Hashtbl.add t.token_cache (host, path, meth) token;
+          Lwt.async (fun () -> clear_entry t 120. host path meth);
           Lwt.return token
         end
 

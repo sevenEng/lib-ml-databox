@@ -35,7 +35,10 @@ module Common = struct
   let with_root t path = (path_root t) ^ path
 
   let common_write t ~path ?token_path ~payload () =
-    let host = Z.endpoint t.zest in
+    let host =
+      Z.endpoint t.zest
+      |> Uri.of_string
+      |> Uri.host_with_default ~default:"" in
     let path = with_root t path in
     let token_path = match token_path with
       | None -> path | Some path -> with_root t path in
@@ -47,14 +50,20 @@ module Common = struct
     Z.post t.zest ~token ~format ~uri:path ~payload ()
 
   let common_read t ~path ?(format=`Json) () =
-    let host = Z.endpoint t.zest in
+    let host =
+      Z.endpoint t.zest
+      |> Uri.of_string
+      |> Uri.host_with_default ~default:"" in
     let path = with_root t path in
     Utils.request_token t.client_ctx.arbiter ~host ~path ~meth:"GET" >>= fun token ->
     Z.get t.zest ~token ~format:(to_format format) ~uri:path ()
     >|= transform_content format
 
   let observe t ~datasource_id ?(timeout=0) ?(format=`Json) () =
-    let host = Z.endpoint t.zest in
+    let host =
+      Z.endpoint t.zest
+      |> Uri.of_string
+      |> Uri.host_with_default ~default:"" in
     let path = with_root t @@ "/" ^ datasource_id in
     Utils.request_token t.client_ctx.arbiter ~host ~path ~meth:"GET"  >>= fun token ->
     Z.observe t.zest ~token ~uri:path ~format:(to_format format) ()
@@ -65,7 +74,10 @@ module Common = struct
     Z.stop_observing t.zest ~uri:path
 
   let register_datasource t ~meta =
-    let host = Z.endpoint t.zest in
+    let host =
+      Z.endpoint t.zest
+      |> Uri.of_string
+      |> Uri.host_with_default ~default:"" in
     let path = "/cat" in
     Utils.request_token t.client_ctx.arbiter ~host ~path ~meth:"POST" >>= fun token ->
     let payload =
@@ -76,7 +88,10 @@ module Common = struct
     Z.post t.zest ~token ~format:Z.json_format ~uri:path ~payload ()
 
   let get_datasource_catalogue t =
-    let host = Z.endpoint t.zest in
+    let host =
+      Z.endpoint t.zest
+      |> Uri.of_string
+      |> Uri.host_with_default ~default:"" in
     let path = "/cat" in
     Utils.request_token t.client_ctx.arbiter ~host ~path ~meth:"GET" >>= fun token ->
     Z.get t.zest ~token ~uri:path ()
