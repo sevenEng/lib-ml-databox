@@ -11,12 +11,10 @@
 	"databox-type":"app",
 
   "tags": [
-    "store",
-    "blob",
-    "db",
-    "native",
-    "json",
-    "timeseries"
+    "square root",
+    "solver",
+    "timeseries",
+    "ocaml"
   ],
 
   "homepage": "https://github.com/sevenEng/lib-ml-databox",
@@ -25,12 +23,23 @@
     "url": "git+https://github.com/sevenEng/lib-ml-databox.git"
   },
 
+  "packages": [
+		{
+			"name": "Square root solver",
+			"purpose": "To solve square root using newton's method",
+			"install": "required",
+			"risks": "None.",
+			"benefits": "Show how to use lib-ml-ocaml",
+			"datastores": [ "mlSampleFeed","mlSampleActuator" ]
+		}
+  ],
+
   "datasources":[
     {
         "type":"mlSampleFeed",
         "required":true,
         "name":"mlSampleFeed",
-        "clientid":"DS_mlSampleFeed",
+        "clientid":"mlSampleFeed",
         "granularities":[
 
         ]
@@ -39,7 +48,7 @@
         "type":"mlSampleActuator",
         "required":true,
         "name":"mlSampleActuator",
-        "clientid":"DS_mlSampleActuator",
+        "clientid":"mlSampleActuator",
         "granularities":[
 
         ]
@@ -47,6 +56,5 @@
   ],
 
   "resource-requirements": {
-    "store":"core-store"
   }
 }

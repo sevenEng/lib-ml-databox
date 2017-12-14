@@ -17,7 +17,7 @@ build-test: [
 
 depends: [
   "jbuilder"     {build}
-  "reason"       {build & <"3.0.0"}
+  "reason"       {build & < "3.0.0"}
 
   "lwt-zmq"
   "bitstring"
@@ -28,5 +28,6 @@ depends: [
   "base64"
   "uri"
   "ezjsonm"
+  "tls"
   "cohttp-lwt-unix"
 ]

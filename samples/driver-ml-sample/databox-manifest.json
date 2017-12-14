@@ -11,12 +11,10 @@
 	"databox-type":"driver",
 
   "tags": [
-    "store",
-    "blob",
-    "db",
-    "native",
-    "json",
-    "timeseries"
+    "square root",
+    "solver",
+    "timeseries",
+    "ocaml"
   ],
 
   "homepage": "https://github.com/sevenEng/lib-ml-databox",
@@ -26,6 +24,6 @@
   },
 
   "resource-requirements": {
-    "store":"core-store"
+    "store":["core-store"]
   }
 }

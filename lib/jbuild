@@ -4,4 +4,4 @@
     ((name lib_databox)
      (public_name lib-databox)
      (preprocess (pps (ppx_bitstring)))
-     (libraries (lwt-zmq bitstring hex uri base64 bos cohttp-lwt-unix ezjsonm))))
+     (libraries (lwt-zmq bitstring hex uri base64 bos tls cohttp-lwt-unix ezjsonm))))
