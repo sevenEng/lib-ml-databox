@@ -2,11 +2,13 @@ $( document ).ready(function() {
     $("#solve").click(function(){
         var rn = $("#rn").val();
         var delta = $("#delta").val();
+        var data = {"rn": rn, "delta": delta};
+        console.log("to solve: " + JSON.stringify(data))
         if (isNumeric(rn) && isNumeric(delta) && rn >= 0 && delta >= 0) {
             this.disabled = true;
-            $.post("./ui/solve",$( "#solver" ).serialize())
+            $.post("./ui/solve", JSON.stringify(data))
             .done(() => {
-                $("#output").val("Solving:");
+                $("#output").html("Solving:");
                 pollingRe($("#output"));
             })
             .always(() => {
@@ -24,12 +26,14 @@ function isNumeric(n) {
 
 function pollingRe(output) {
     setTimeout(() => {
-        $.get("/ui/solve", (data) => {
-            if (data.length !== 0 && data[0] === "over") {
+        $.get("./ui/solve", (data) => {
+            console.log("GET /ui/solve:" + data);
+            let arr = JSON.parse(data);
+            if (arr.length !== 0 && arr[0] === "over") {
                 return;
             } else {
-                var new_output = output.val() + ' ' + data.join(' ');
-                output.val(new_output);
+                var new_output = output.html() + ' ' + arr.join(' ');
+                output.html(new_output);
                 pollingRe(output);
             }
         });

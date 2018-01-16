@@ -13,4 +13,6 @@ WORKDIR /driver-ml-sample
 RUN apk update && apk add zeromq-dev gmp-dev
 COPY --from=BUILDER /driver-builder/_build/default/src/main.exe driver
 
+ENV OCAMLRUNPARAM=b
+
 ENTRYPOINT [ "./driver" ]

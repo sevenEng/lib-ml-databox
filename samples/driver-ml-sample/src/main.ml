@@ -60,14 +60,15 @@ let serve_req tsc req_stm =
     | None ->
         if !req_q = [] then compute None 0. else
           let s, comm = List.hd !req_q in
+          Lwt_log.notice_f "compute request: %s %f" comm s >>= fun () ->
           let () = req_q := List.tl !req_q in
-          if comm != "start" then compute None 0.
+          if comm <> "start" then compute None 0.
           else compute (Some s) (s /. 2.)
     | Some s ->
         let payload = to_resp s xn in
         Lwt_log.notice_f "feed back: %s" (Ezjsonm.to_string payload) >>= fun () ->
         TS.write tsc ~datasource_id:feed_meta.Store_datasource.datasource_id ~payload >>= fun () ->
-        if !req_q = [] || List.hd !req_q != (s, "stop") then compute (Some s) (next s xn)
+        if !req_q = [] || List.hd !req_q <> (s, "stop") then compute (Some s) (next s xn)
         else (req_q := List.tl !req_q; compute None 0.) in
 
   extract_req () <&> compute None 0.
@@ -76,9 +77,11 @@ let serve_req tsc req_stm =
 let main () =
   let ctx = Utils.databox_init () in
   let endpoint = Utils.store_endpoint () in
+  Lwt_log.notice_f "init completed!" >>= fun () ->
   let tsc = TS.create ~endpoint ctx () in
   TS.register_datasource tsc ~meta:feed_meta >>= fun () ->
   TS.register_datasource tsc ~meta:actuator_meta >>= fun () ->
+  Lwt_log.notice_f "datasources registered." >>= fun () ->
 
   TS.observe tsc ~datasource_id:actuator_meta.Store_datasource.datasource_id () >>= fun req_stm ->
   Lwt_log.notice "driver-ml-sample started..." >>= fun () ->

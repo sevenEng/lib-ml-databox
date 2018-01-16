@@ -2,7 +2,7 @@
   "manifest-version": 1,
 
   "name": "driver-ml-sample",
-  "version": "0.3.0",
+  "version": "0.3.1",
 
   "description": "A simple Databox driver to test lib-ml-databox",
   "author": "Qi Li <ql272@cl.cam.ac.uk> ()",

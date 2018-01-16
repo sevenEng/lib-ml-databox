@@ -38,10 +38,12 @@ let init () =
 let req_of_body body =
   let open Ezjsonm in
   Cohttp_lwt_body.to_string body >>= fun body ->
+  Lwt_log.notice_f "[req_of_body] body: %s" body >>= fun () ->
   from_string body
   |> value
   |> get_dict
-  |> fun l -> (List.assoc "rn" l |> get_float, List.assoc "delta" l |> get_float)
+  |> fun l -> (List.assoc "rn" l |> get_string |> float_of_string,
+            List.assoc "delta" l |> get_string |> float_of_string)
   |> Lwt.return
 
 let body_of_results ?(stop = false) results =
@@ -104,6 +106,7 @@ let callback t conn req body =
         |> List.map feed
         |> List.filter (fun (s, _) -> s = t.app.to_solve)
         |> List.map snd in
+      Lwt_log.notice_f "results: %s" (String.concat " " (List.map string_of_float results)) >>= fun () ->
       if should_stop t.app results then
         TS.write tsc ~datasource_id:actuator_id ~payload:(actu_req t.app.to_solve "stop") >>= fun () ->
         let body = body_of_results ~stop:true results in
@@ -121,6 +124,7 @@ let callback t conn req body =
 
 let main () =
   let tsc, feed_id, actu_id = init () in
+  Lwt_log.notice_f "app-ml-sample got datasources: %s %s" feed_id actu_id >>= fun () ->
   TS.observe tsc ~datasource_id:feed_id () >>= fun stm ->
   let store = tsc, stm, actu_id in
   let app = {to_solve = 0.; delta = 0.; last = 0. } in
