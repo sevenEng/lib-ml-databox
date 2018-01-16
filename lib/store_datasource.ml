@@ -19,7 +19,7 @@ let store_type_of_string str = match String.lowercase_ascii str with
   | _ -> raise @@ Failure ("unknown store type: " ^ str)
 
 let relation (rel,valu) = `O ["rel", `String rel; "val", valu]
-let to_hypercat store_endpoint meta : Ezjsonm.t =
+let to_hypercat ds_endpoint meta : Ezjsonm.t =
   let mandatory = [
     "urn:X-hypercat:rels:hasDescription:en", `String meta.description;
     "urn:X-hypercat:rels:isContentType", `String meta.content_type;
@@ -36,9 +36,7 @@ let to_hypercat store_endpoint meta : Ezjsonm.t =
     |> fun items -> match meta.location with
       | Some l -> items @ ["urn:X-databox:rels:hasLocation", `String l]
       | None -> items in
-  let href =
-    Uri.with_path store_endpoint @@ "/" ^ meta.datasource_id
-    |> Uri.to_string in
+  let href = Uri.to_string ds_endpoint in
   let cat = `O [
     "item-metadata", `A (List.map relation @@ item_metadata mandatory);
     "href", `String href;

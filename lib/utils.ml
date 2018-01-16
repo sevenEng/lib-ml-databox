@@ -38,8 +38,9 @@ let databox_init () : databox_ctx =
       arbiter_endpoint;
       arbiter_token = "";
       token_cache = Hashtbl.create 23; } in
-    { arbiter;
-      store_key = "vl6wu0A@XP?}Or/&BR#LSxn>A+}L)p44/W[wXL3<"}
+    let store_key = "vl6wu0A@XP?}Or/&BR#LSxn>A+}L)p44/W[wXL3<" in
+    (*let () = Printf.printf "databox_init: {arbiter: None, store key: %s}\n%!" store_key in*)
+    { arbiter; store_key}
   else
     let arbiter_token = arbiter_token () in
     let arbiter = {
@@ -47,6 +48,12 @@ let databox_init () : databox_ctx =
       arbiter_token;
       token_cache = Hashtbl.create 23; } in
     let store_key = store_key () in
+    (*let () =
+      let endp =
+        match arbiter_endpoint with
+        | Some uri -> Uri.to_string uri
+        | None -> assert false in
+      Printf.printf "databox_init: {arbiter: %s, store key: %s}\n%!" endp store_key in*)
     {arbiter; store_key}
 
 
@@ -83,6 +90,7 @@ let request_token t ~host ~path ~meth =
           "path", `String path;
           "method", `String meth
         ] |> body_of_json in
+        Lwt_log.debug_f "request_token: for %s %s..." host path >>= fun () ->
         Client.post ~body ~headers uri >>= fun (resp, body) ->
         if Cohttp.Response.status resp <> `OK then
           Cohttp_lwt_body.to_string body >>= fun body ->

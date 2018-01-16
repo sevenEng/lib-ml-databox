@@ -74,17 +74,21 @@ module Common = struct
     Z.stop_observing t.zest ~uri:path
 
   let register_datasource t ~meta =
+    let endpoint = Z.endpoint t.zest in
     let host =
-      Z.endpoint t.zest
+      endpoint
       |> Uri.of_string
       |> Uri.host_with_default ~default:"" in
+    Lwt_log.debug_f "host: %s\n%!" host >>= fun () ->
+    Lwt_log.debug_f "zest endpoint: %s\n%!" endpoint >>= fun () ->
     let path = "/cat" in
     Utils.request_token t.client_ctx.arbiter ~host ~path ~meth:"POST" >>= fun token ->
     let payload =
       let ds_path = with_root t @@ "/" ^ meta.Store_datasource.datasource_id in
-      let ds_uri = Uri.with_path (Uri.of_string host) ds_path in
+      let ds_uri = Uri.with_path (Uri.of_string endpoint) ds_path in
       let cat = Store_datasource.to_hypercat ds_uri meta in
       Ezjsonm.to_string cat in
+    Lwt_log.debug_f "payload: %s\n%!" payload >>= fun () ->
     Z.post t.zest ~token ~format:Z.json_format ~uri:path ~payload ()
 
   let get_datasource_catalogue t =
