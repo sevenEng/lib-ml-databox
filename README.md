@@ -1,4 +1,4 @@
-# lib-ml-databox
+# lib-ml-databox [![docs](https://img.shields.io/badge/doc-online-blue.svg)](https://seveneng.github.io/lib-ml-databox/)
 A OCaml/Reason library for interfacing with Databox APIs
 
 ### Usage
