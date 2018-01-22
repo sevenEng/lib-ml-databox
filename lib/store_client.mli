@@ -22,18 +22,27 @@ module type KV_SIG = sig
       from {!Utils.databox_init}, [logging] defaults to [false]. *)
 
   val register_datasource : t -> meta:Store_datasource.meta -> unit Lwt.t
+  (** [register_datasource t ~meta] registers a datasource described by [meta]
+      with store [t]. *)
 
   val get_datasource_catalogue : t -> string Lwt.t
+  (** [get_datasource_catalogue t] retrieves a summury of all datasources
+      registered with store [t]. *)
 
-  (** {1 Data store functions} *)
+  (** {1 Store data function} *)
 
   val write: t -> datasource_id:string -> payload:content -> unit Lwt.t
 
-  (** {1 Data load functions} *)
+  (** {1 Load data functions} *)
 
   val read: t -> datasource_id:string -> ?format:content_format -> unit -> content Lwt.t
 
   val observe: t -> datasource_id:string -> ?timeout:int -> ?format:content_format -> unit -> content Lwt_stream.t Lwt.t
+  (** [observe t ~datasource_id ?timeout ?format ()] returns a stream from which any update on
+      the value associated with [datasource_id] is returned.
+
+      [timeout] defaults to 0, which means observing until {!KV_SIG.stop_observing} is called,
+      unit is seconds. [format] defaults to `Json. *)
 
   val stop_observing : t -> datasource_id:string -> unit Lwt.t
 end
@@ -58,16 +67,18 @@ module type TS_SIG = sig
     from {!Utils.databox_init}, [logging] defaults to [false]. *)
 
   val register_datasource : t -> meta:Store_datasource.meta -> unit Lwt.t
+  (** See {!KV_SIG.register_datasource}. *)
 
   val get_datasource_catalogue : t -> string Lwt.t
+  (** See {!KV_SIG.get_datasource_catalogue}. *)
 
-  (** {1:store Data store functions} *)
+  (** {1:store Store data functions} *)
 
   val write: t -> datasource_id:string -> payload:Ezjsonm.t -> unit Lwt.t
 
   val write_at: t -> datasource_id:string -> ts:int64 -> payload:Ezjsonm.t -> unit Lwt.t
 
-  (** {1 Data load functions}
+  (** {1 Load data functions}
       All data loaded will be attached with a timestamp, for example:
       {v
 \{ timestamp: 1516633601325,
@@ -97,6 +108,11 @@ module type TS_SIG = sig
       when the store loads the data*)
 
   val observe: t -> datasource_id:string -> ?timeout:int -> unit -> Ezjsonm.t Lwt_stream.t Lwt.t
+  (** [observe t ~datasource_id ?timeout ()] returns a stream from which each new
+      value written to [datasource_id] could be feteched.
+
+      [timeout] defaults to 0, which means observing until {!TS_SIG.stop_observing} is called,
+      unit is seconds.*)
 
   val stop_observing : t -> datasource_id:string -> unit Lwt.t
 end

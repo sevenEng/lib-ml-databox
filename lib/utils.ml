@@ -9,6 +9,7 @@ type arbiter = {
 type databox_ctx = {
   arbiter: arbiter;
   store_key: string;
+  export_endpoint: string;
 }
 
 let secrets_dir = Fpath.v "/run/secrets/"
@@ -27,6 +28,8 @@ let store_key () =
   | Ok key -> key
   | Error (`Msg msg) -> raise @@ Failure msg
 
+let export_endpoint () = Sys.getenv "DATABOX_EXPORT_SERVICE_ENDPOINT"
+
 let databox_init () : databox_ctx =
   let arbiter_endpoint =
     try
@@ -39,8 +42,9 @@ let databox_init () : databox_ctx =
       arbiter_token = "";
       token_cache = Hashtbl.create 23; } in
     let store_key = "vl6wu0A@XP?}Or/&BR#LSxn>A+}L)p44/W[wXL3<" in
+    let export_endpoint = "" in
     (*let () = Printf.printf "databox_init: {arbiter: None, store key: %s}\n%!" store_key in*)
-    { arbiter; store_key}
+    { arbiter; store_key; export_endpoint}
   else
     let arbiter_token = arbiter_token () in
     let arbiter = {
@@ -48,13 +52,14 @@ let databox_init () : databox_ctx =
       arbiter_token;
       token_cache = Hashtbl.create 23; } in
     let store_key = store_key () in
+    let export_endpoint = export_endpoint () in
     (*let () =
       let endp =
         match arbiter_endpoint with
         | Some uri -> Uri.to_string uri
         | None -> assert false in
       Printf.printf "databox_init: {arbiter: %s, store key: %s}\n%!" endp store_key in*)
-    {arbiter; store_key}
+    {arbiter; store_key; export_endpoint}
 
 
 let with_store_key t store_key = {t with store_key}
@@ -109,3 +114,25 @@ let https_creds () =
   let cert = Fpath.add_seg secrets_dir "DATABOX.pem" in
   let priv_key = Fpath.add_seg secrets_dir "DATABOX.pem" in
   Fpath.to_string cert, Fpath.to_string priv_key
+
+
+let to_export_body ?id destination payload =
+  let id = match id with Some id -> id | None -> "" in
+  let o = [
+    "id", `String id;
+    "uri", `String destination;
+    "data", `String payload ] in
+  Ezjsonm.dict o
+  |> Ezjsonm.to_string
+
+let export_lp t ~id ~destination ~payload =
+  let uri = Uri.of_string t.export_endpoint in
+  let host = Uri.host_with_default ~default:"" uri in
+  let path = "/lp/export" in
+  let meth = "POST" in
+  request_token t.arbiter ~host ~path ~meth >>= fun token ->
+  let headers = Cohttp.Header.add headers "x-api-key" token in
+  let body_str = to_export_body ?id destination payload in
+  Lwt_log.debug_f "export_lp: %s" body_str >>= fun () ->
+  let body = Cohttp_lwt_body.of_string body_str in
+  Client.post ~headers ~body uri
